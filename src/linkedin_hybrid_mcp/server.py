@@ -1,4 +1,4 @@
-"""Minimal MCP server skeleton for milestone 1."""
+"""Minimal MCP server skeleton for current milestone."""
 
 from __future__ import annotations
 
@@ -12,9 +12,10 @@ except ModuleNotFoundError:
 
 from linkedin_hybrid_mcp import __version__
 from linkedin_hybrid_mcp.auth import auth_status
+from linkedin_hybrid_mcp.client import transport_self_test
 
 SERVICE_NAME = "linkedin-hybrid-mcp"
-MILESTONE = "milestone-2"
+MILESTONE = "milestone-3"
 
 
 class _UnavailableMCP:
@@ -49,6 +50,7 @@ def service_info_payload() -> dict[str, object]:
     """Return current milestone and architecture metadata."""
 
     current_auth_status = auth_status().to_dict()
+    current_transport_status = transport_self_test().to_dict()
 
     return {
         "service": SERVICE_NAME,
@@ -63,9 +65,13 @@ def service_info_payload() -> dict[str, object]:
             "implemented": "local session scaffold only",
             "status": current_auth_status,
         },
+        "transport": {
+            "implemented": "generic authenticated request scaffold only",
+            "status": current_transport_status,
+        },
         "notes": [
-            "Milestone 2 adds local auth/session storage scaffolding.",
-            "LinkedIn auth, browser bootstrap, refresh flows, and API integrations are still not implemented.",
+            "Milestone 3 adds a typed HTTP transport scaffold with safe header handling and retry/backoff helpers.",
+            "LinkedIn auth, browser bootstrap, refresh flows, and LinkedIn-specific API integrations are still not implemented.",
         ],
     }
 

@@ -11,7 +11,8 @@ def test_health_payload() -> None:
 def test_service_info_payload_marks_scaffold() -> None:
     payload = service_info_payload()
 
-    assert payload["milestone"] == "milestone-2"
+    assert payload["milestone"] == "milestone-3"
     assert payload["architecture"]["mode"] == "api-first"
     assert payload["architecture"]["implemented"] == "partial"
     assert payload["auth"]["implemented"] == "local session scaffold only"
+    assert payload["transport"]["implemented"] == "generic authenticated request scaffold only"

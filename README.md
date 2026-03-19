@@ -2,15 +2,16 @@
 
 `linkedin-hybrid-mcp` is a new Python MCP service intended to follow an API-first architecture for LinkedIn automation and data access.
 
-Milestone 2 in this repository is intentionally limited to:
+Milestone 3 in this repository is intentionally limited to:
 
 - Python project scaffolding
 - architecture documentation
 - a minimal MCP server skeleton
 - basic `health` and `service_info` tools
 - a local auth/session storage scaffold for future work
+- a generic typed HTTP transport scaffold for future authenticated calls
 
-It does **not** yet implement working LinkedIn authentication, browser bootstrap, HTTP clients, or any reverse-engineered/private API behavior.
+It does **not** yet implement working LinkedIn authentication, browser bootstrap, LinkedIn-specific HTTP clients, or any reverse-engineered/private API behavior.
 
 ## Design direction
 
@@ -39,6 +40,7 @@ src/linkedin_hybrid_mcp/
   __init__.py
   __main__.py
   auth.py
+  client.py
   config.py
   server.py
 docs/
@@ -63,6 +65,19 @@ This repository currently includes a local-only auth/session scaffold:
 - explicit placeholders for future browser bootstrap and refresh flows
 
 The repository still does not implement real LinkedIn login or API calls.
+
+## Transport scaffold status
+
+The repository now includes a production-shaped but generic HTTP transport scaffold:
+
+- typed transport errors
+- request settings for timeouts and response size limits
+- retry/backoff policy for retryable failures
+- safe header validation and redacted diagnostics
+- a generic authenticated request helper that requires explicit caller-supplied auth headers
+- a transport self-test helper that reports readiness without making live network calls
+
+This transport layer is intentionally generic. It does not claim to know or implement LinkedIn private endpoints, cookies, or request formats.
 
 ## Local auth storage
 

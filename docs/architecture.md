@@ -4,9 +4,9 @@
 
 Build a maintainable MCP service for LinkedIn workflows with an API-first execution model instead of a browser-heavy scraping architecture.
 
-## Milestone 2 scope
+## Milestone 3 scope
 
-This milestone establishes the initial runtime skeleton plus local auth/session persistence primitives:
+This milestone establishes the initial runtime skeleton plus local auth/session persistence primitives and a generic transport layer:
 
 - package and repository structure
 - MCP server entrypoint
@@ -14,12 +14,15 @@ This milestone establishes the initial runtime skeleton plus local auth/session 
 - local session metadata model
 - local JSON storage helpers
 - auth readiness/status evaluation
+- typed generic HTTP transport scaffolding
+- retry/backoff and request guardrails
+- non-network transport self-test diagnostics
 - architecture notes for future milestones
 
 The following are intentionally not implemented yet:
 
 - LinkedIn authentication bootstrap
-- authenticated HTTP clients
+- LinkedIn-specific authenticated HTTP clients
 - API adapters
 - browser automation fallback flows
 - domain tools for profile, messaging, search, or feed operations
@@ -59,7 +62,23 @@ Expected responsibilities:
 - response normalization
 - transport-level observability
 
-This layer is not implemented in Milestone 2.
+Current implementation:
+
+- generic absolute-URL request builder
+- request settings for timeout and response size limits
+- typed transport errors
+- retry/backoff for retryable status codes and timeout failures
+- safe header validation and redacted diagnostics
+- generic authenticated request execution that requires caller-supplied auth headers
+- transport self-test helpers that avoid live network calls
+
+Non-goals in the current scaffold:
+
+- no LinkedIn endpoint discovery
+- no fake or inferred private API support
+- no persistence of raw cookie/header secrets in the current session model
+
+This layer is only partially implemented. It provides transport primitives, not a LinkedIn API client.
 
 ### 3. Browser fallback layer
 
