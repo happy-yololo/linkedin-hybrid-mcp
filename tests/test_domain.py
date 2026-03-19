@@ -19,6 +19,7 @@ from linkedin_hybrid_mcp.domain import (
     SearchPeopleResult,
     SearchPeopleRequest,
     benchmark_operations,
+    company_posts_blocked_result,
 )
 
 
@@ -71,6 +72,20 @@ def test_search_people_rejects_empty_query() -> None:
 
     with pytest.raises(ValueError, match="query must not be empty"):
         service.search_people(SearchPeopleRequest(query=""))
+
+
+def test_company_posts_blocked_result_is_typed_and_explicit() -> None:
+    blocked = company_posts_blocked_result(CompanyPostsRequest(company_id="acme", limit=3))
+
+    payload = blocked.to_dict()
+    assert payload["company_id"] == "acme"
+    assert payload["limit"] == 3
+    assert payload["implemented"] is False
+    assert payload["status"] == "blocked"
+    assert payload["attempted_public_urls"][1] == "https://www.linkedin.com/company/acme/posts/"
+    blocker_codes = [entry["code"] for entry in payload["blockers"]]
+    assert "dynamic_feed_rendering" in blocker_codes
+    assert "no_browser_or_authenticated_fallback" in blocker_codes
 
 
 def test_service_returns_results_when_public_providers_are_configured() -> None:

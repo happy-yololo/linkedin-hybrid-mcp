@@ -68,7 +68,7 @@ tests/
 - `feature_parity_status`: benchmark tracking for implemented vs blocked operations
 - `get_company_profile`: opt-in LinkedIn-backed implementation using public company page metadata parsing (`LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`)
 - `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`: opt-in public-web implementations (`LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB=1`)
-- `get_company_posts`: explicit blocker payload with clear reasons and next honest steps
+- `get_company_posts`: explicit blocked payload with typed blocker codes, attempted public URLs, and next honest steps
 
 ## Status
 
@@ -110,7 +110,11 @@ Limitations and blockers:
 - no browser automation fallback is implemented yet
 - no LinkedIn private API integration is implemented
 - `search_people` relies on public web indexing coverage (DuckDuckGo HTML endpoint), not LinkedIn private APIs
-- `get_company_posts` remains intentionally not implemented due dynamic feed rendering and no browser/auth fallback in this repo
+- `get_company_posts` remains blocked: company feed pages are dynamic and do not provide a stable public metadata list equivalent to other implemented operations
+- blocker output now includes:
+  - `blockers` with stable `code` values and supporting evidence
+  - `attempted_public_urls` for reproducible public-web probe targets
+  - `required_next_capabilities` and `next_honest_steps` to unblock in a future milestone
 
 ## Transport scaffold status
 

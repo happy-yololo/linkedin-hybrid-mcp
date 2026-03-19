@@ -74,7 +74,7 @@ Build `linkedin-hybrid-mcp` into an API-first, production-shaped MCP service for
     - `implemented`
     - `lookup_failed`
     - `not_implemented`
-  - `get_company_posts` remains blocked with explicit payload blockers and next steps
+  - `get_company_posts` remains blocked with typed payload blockers, attempted URL targets, and required capabilities
 
 ## Working principles
 - API-first, not browser-first

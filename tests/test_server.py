@@ -329,4 +329,7 @@ def test_get_company_posts_payload_fails_safely() -> None:
     assert payload["feature"]["status"] == "not_implemented"
     assert payload["feature"]["operation"] == "get_company_posts"
     assert payload["feature"]["request"]["limit"] == 2
-    assert payload["feature"]["blockers"]
+    assert payload["feature"]["attempted_public_urls"][0] == "https://www.linkedin.com/company/company-1/"
+    assert payload["feature"]["required_next_capabilities"]
+    blocker_codes = [entry["code"] for entry in payload["feature"]["blockers"]]
+    assert "dynamic_feed_rendering" in blocker_codes

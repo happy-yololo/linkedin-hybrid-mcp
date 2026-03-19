@@ -218,6 +218,103 @@ class CompanyPostsRequest:
 
 
 @dataclass(frozen=True)
+class CompanyPostsBlocker:
+    code: str
+    message: str
+    evidence: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": self.message,
+            "evidence": list(self.evidence),
+        }
+
+
+@dataclass(frozen=True)
+class CompanyPostsBlockedResult:
+    company_id: str
+    limit: int
+    implemented: bool = False
+    status: str = "blocked"
+    source: str = "no_stable_public_company_posts_source"
+    attempted_public_urls: tuple[str, ...] = ()
+    blockers: tuple[CompanyPostsBlocker, ...] = ()
+    required_next_capabilities: tuple[str, ...] = ()
+    next_honest_steps: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "company_id": self.company_id,
+            "limit": self.limit,
+            "implemented": self.implemented,
+            "status": self.status,
+            "source": self.source,
+            "attempted_public_urls": list(self.attempted_public_urls),
+            "blockers": [blocker.to_dict() for blocker in self.blockers],
+            "required_next_capabilities": list(self.required_next_capabilities),
+            "next_honest_steps": list(self.next_honest_steps),
+            "notes": list(self.notes),
+        }
+
+
+def _company_posts_public_urls(company_id: str) -> tuple[str, ...]:
+    base = f"https://www.linkedin.com/company/{company_id}/"
+    return (
+        base,
+        f"{base}posts/",
+        f"{base}recent-activity/",
+    )
+
+
+def company_posts_blocked_result(request: CompanyPostsRequest) -> CompanyPostsBlockedResult:
+    normalized_company_id = _validate_non_empty("company_id", request.company_id)
+    normalized_limit = _validate_limit(request.limit)
+    return CompanyPostsBlockedResult(
+        company_id=normalized_company_id,
+        limit=normalized_limit,
+        attempted_public_urls=_company_posts_public_urls(normalized_company_id),
+        blockers=(
+            CompanyPostsBlocker(
+                code="dynamic_feed_rendering",
+                message=(
+                    "Company posts are rendered as an interactive feed and are not exposed as a stable, "
+                    "static metadata list suitable for reliable public-web parsing."
+                ),
+                evidence=(
+                    "Unlike profile/company/job metadata, post collections are not consistently represented in Open Graph or JSON-LD.",
+                ),
+            ),
+            CompanyPostsBlocker(
+                code="no_browser_or_authenticated_fallback",
+                message=(
+                    "This repository intentionally does not implement browser automation or authenticated "
+                    "private API usage for company post feeds."
+                ),
+                evidence=(
+                    "Current implementation policy forbids private API claims and pretend browser support.",
+                ),
+            ),
+        ),
+        required_next_capabilities=(
+            "verified_stable_public_source_for_company_posts",
+            "or_browser_fallback_for_dynamic_feed_extraction",
+            "or_authenticated_api_contract_with_explicit_authorization_scope",
+        ),
+        next_honest_steps=(
+            "Keep get_company_posts fail-closed with typed blocked output.",
+            "Add a provider only after reproducible public HTML evidence supports stable parsing.",
+            "If stability cannot be proven, implement a clearly-scoped browser/auth fallback in a future milestone.",
+        ),
+        notes=(
+            "No LinkedIn private API support is claimed.",
+            "No browser automation support is claimed in the current milestone.",
+        ),
+    )
+
+
+@dataclass(frozen=True)
 class OperationPlaceholder:
     """Safe description of a benchmarked but unimplemented operation."""
 

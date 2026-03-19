@@ -37,6 +37,7 @@ from linkedin_hybrid_mcp.domain import (
     SearchJobsRequest,
     SearchPeopleRequest,
     benchmark_operations,
+    company_posts_blocked_result,
 )
 from linkedin_hybrid_mcp.public_features import (
     DuckDuckGoLinkedInPeopleSearchProvider,
@@ -293,7 +294,7 @@ def feature_parity_payload() -> dict[str, object]:
         "operations": benchmark_operations(),
         "notes": [
             "Implemented operations use public pages/public search only and are enabled explicitly by environment flags.",
-            "get_company_posts remains blocked due public-page consistency limitations and no browser/auth fallback.",
+            "get_company_posts remains blocked due dynamic feed rendering and no browser/auth fallback in this repository.",
             "This service does not claim LinkedIn private API, scraping automation, or browser execution support.",
         ],
     }
@@ -540,20 +541,21 @@ def get_company_posts_payload(*, company_id: str, limit: int = 10) -> dict[str, 
     """Fail safely with explicit blockers for company posts."""
 
     request = CompanyPostsRequest(company_id=company_id, limit=limit)
+    blocked = company_posts_blocked_result(request)
     try:
         feature_parity_service.get_company_posts(request)
     except DomainOperationNotImplementedError:
         payload = _unimplemented_feature_payload(
             "get_company_posts",
-            {"company_id": request.company_id, "limit": request.limit},
+            {"company_id": blocked.company_id, "limit": blocked.limit},
         )
-        payload["feature"]["blockers"] = [
-            "LinkedIn company feed pages are heavily dynamic and not consistently exposed as static public metadata.",
-            "This repository does not implement browser automation or authenticated private API fallback.",
-        ]
-        payload["feature"]["next_honest_steps"] = [
-            "Keep typed request/response contracts for future providers.",
-            "Add a provider when a stable public source is verified and testable.",
+        payload["feature"]["blockers"] = [item.to_dict() for item in blocked.blockers]
+        payload["feature"]["attempted_public_urls"] = list(blocked.attempted_public_urls)
+        payload["feature"]["required_next_capabilities"] = list(blocked.required_next_capabilities)
+        payload["feature"]["next_honest_steps"] = list(blocked.next_honest_steps)
+        payload["feature"]["notes"] = [
+            *payload["feature"]["notes"],
+            *blocked.notes,
         ]
         return payload
     raise AssertionError("get_company_posts should fail closed when no provider is configured.")

@@ -129,7 +129,11 @@ Milestone 8 includes benchmark tools for:
 
 `get_company_profile` can execute a real HTTP+parsing flow against LinkedIn public company pages when `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`.
 
-`get_company_posts` remains intentionally unimplemented with explicit blockers surfaced in tool payloads.
+`get_company_posts` remains intentionally unimplemented with explicit typed blockers surfaced in tool payloads:
+
+- blocker codes and evidence for why public static parsing is not reliable
+- attempted public URL targets used for honest probe scope
+- required capabilities/next steps for a future browser/auth or verified-public-source implementation
 
 ## Engineering principles
 
