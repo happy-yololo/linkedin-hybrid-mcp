@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -20,10 +21,12 @@ from linkedin_hybrid_mcp.auth import (
     default_session_metadata,
     refresh_session_placeholder,
 )
+from linkedin_hybrid_mcp.company_profile import LinkedInPublicCompanyProfileProvider
 from linkedin_hybrid_mcp.client import transport_self_test
 from linkedin_hybrid_mcp.config import StoragePaths
 from linkedin_hybrid_mcp.domain import (
     FEATURE_BENCHMARK,
+    CompanyProfileLookupError,
     CompanyPostsRequest,
     CompanyProfileRequest,
     DomainOperationNotImplementedError,
@@ -36,8 +39,18 @@ from linkedin_hybrid_mcp.domain import (
 )
 
 SERVICE_NAME = "linkedin-hybrid-mcp"
-MILESTONE = "milestone-6"
-feature_parity_service = LinkedInFeatureParityService()
+MILESTONE = "milestone-7"
+
+
+def _build_feature_parity_service() -> LinkedInFeatureParityService:
+    if os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1":
+        return LinkedInFeatureParityService(
+            company_profile_provider=LinkedInPublicCompanyProfileProvider(),
+        )
+    return LinkedInFeatureParityService()
+
+
+feature_parity_service = _build_feature_parity_service()
 
 
 class _UnavailableMCP:
@@ -93,12 +106,16 @@ def service_info_payload() -> dict[str, object]:
         },
         "feature_parity": {
             "benchmark": FEATURE_BENCHMARK,
-            "implemented": "placeholder domain/service layer only",
+            "implemented": (
+                "company profile integration enabled; remaining operations are placeholders"
+                if os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1"
+                else "placeholder domain/service layer only (company profile has opt-in integration)"
+            ),
             "operations": benchmark_operations(),
         },
         "notes": [
-            "Milestone 6 adds typed placeholder interfaces for benchmarked LinkedIn operations.",
-            "LinkedIn auth, browser bootstrap, refresh flows, and LinkedIn-specific API integrations are still not implemented.",
+            "Milestone 7 adds typed benchmark operation interfaces and a real company profile integration path.",
+            "LinkedIn auth, browser bootstrap, refresh flows, and most LinkedIn-specific API integrations are still not implemented.",
         ],
     }
 
@@ -223,15 +240,29 @@ def _unimplemented_feature_payload(
 def feature_parity_payload() -> dict[str, object]:
     """Describe the benchmarked LinkedIn operations tracked by placeholders."""
 
+    company_profile_enabled = (
+        os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1"
+    )
     return {
         "service": SERVICE_NAME,
         "milestone": MILESTONE,
         "benchmark": FEATURE_BENCHMARK,
-        "implemented": False,
+        "implemented": company_profile_enabled,
+        "implemented_operations": ["get_company_profile"] if company_profile_enabled else [],
+        "placeholder_operations": [
+            "search_people",
+            "get_person_profile",
+            "search_jobs",
+            "get_job_details",
+            "get_company_posts",
+        ]
+        if company_profile_enabled
+        else benchmark_operations(),
         "operations": benchmark_operations(),
         "notes": [
-            "These operations are tracked as explicit placeholders only.",
-            "The current scaffold does not claim LinkedIn private API, scraping, or browser execution support for them.",
+            "get_company_profile has a real opt-in integration path via LinkedIn public company page metadata.",
+            "Other operations are tracked as explicit placeholders only.",
+            "The current scaffold does not claim LinkedIn private API, scraping, or browser execution support.",
         ],
     }
 
@@ -293,17 +324,53 @@ def get_job_details_payload(*, job_id: str) -> dict[str, object]:
 
 
 def get_company_profile_payload(*, company_id: str) -> dict[str, object]:
-    """Fail safely for the benchmarked company profile operation."""
+    """Return company profile data when configured, otherwise fail safely."""
 
     request = CompanyProfileRequest(company_id=company_id)
     try:
-        feature_parity_service.get_company_profile(request)
+        profile = feature_parity_service.get_company_profile(request)
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_company_profile",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "implemented",
+                "summary": (
+                    "Returns company profile metadata parsed from LinkedIn public company page HTML."
+                ),
+                "request": {"company_id": request.company_id},
+                "notes": [
+                    "Implementation is API-first HTTP fetch + metadata parsing; no browser automation.",
+                    "Coverage depends on what metadata LinkedIn exposes publicly for the target company page.",
+                ],
+            },
+            "company_profile": profile.to_dict(),
+        }
+    except CompanyProfileLookupError as exc:
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_company_profile",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "lookup_failed",
+                "summary": "Company profile integration is configured but the profile lookup failed.",
+                "request": {"company_id": request.company_id},
+                "retryable": exc.retryable,
+                "error": str(exc),
+                "notes": [
+                    "This is a real integration path, but LinkedIn availability/shape can still fail at runtime.",
+                ],
+            },
+        }
     except DomainOperationNotImplementedError:
         return _unimplemented_feature_payload(
             "get_company_profile",
             {"company_id": request.company_id},
         )
-    raise AssertionError("get_company_profile placeholder should always raise not implemented.")
 
 
 def get_company_posts_payload(*, company_id: str, limit: int = 10) -> dict[str, object]:

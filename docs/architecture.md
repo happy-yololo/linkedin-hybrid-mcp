@@ -6,7 +6,7 @@ Build a maintainable MCP service for LinkedIn workflows with an API-first execut
 
 ## Current scope
 
-Milestone 5 establishes the current runtime skeleton plus local auth/session persistence primitives, a generic transport layer, and safe diagnostics tooling:
+Milestone 7 establishes the current runtime skeleton plus local auth/session persistence primitives, a generic transport layer, safe diagnostics tooling, and the first real company-profile integration path:
 
 - package and repository structure
 - MCP server entrypoint
@@ -17,6 +17,7 @@ Milestone 5 establishes the current runtime skeleton plus local auth/session per
 - typed generic HTTP transport scaffolding
 - retry/backoff and request guardrails
 - non-network transport self-test diagnostics
+- LinkedIn public company profile metadata parser/provider (`get_company_profile`, opt-in)
 - architecture notes for future milestones
 - security and configuration documentation
 
@@ -114,16 +115,16 @@ Milestone 4 ships:
 - `auth_flow_placeholders`
 - `service_diagnostics`
 
-Milestone 6 now adds explicit placeholder tools for:
+Milestone 7 now includes benchmark tools for:
 
 - `search_people`
 - `get_person_profile`
 - `search_jobs`
 - `get_job_details`
-- `get_company_profile`
+- `get_company_profile` (real when `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`)
 - `get_company_posts`
 
-These are benchmark-tracking placeholders only. They return safe `not_implemented` payloads and do not perform LinkedIn network calls.
+`get_company_profile` can execute a real HTTP+parsing flow against LinkedIn public company pages when explicitly enabled. The other benchmarked tools remain placeholders with safe `not_implemented` payloads.
 
 ## Engineering principles
 

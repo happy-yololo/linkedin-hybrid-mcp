@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from linkedin_hybrid_mcp.auth import SessionMetadata, save_session
+from linkedin_hybrid_mcp.domain import (
+    CompanyProfileLookupError,
+    CompanyProfileRequest,
+    CompanyProfileResult,
+    LinkedInFeatureParityService,
+)
 from linkedin_hybrid_mcp.config import resolve_storage_paths
 from linkedin_hybrid_mcp.server import (
     auth_flow_placeholders_payload,
@@ -30,12 +36,15 @@ def test_health_payload() -> None:
 def test_service_info_payload_marks_scaffold() -> None:
     payload = service_info_payload()
 
-    assert payload["milestone"] == "milestone-6"
+    assert payload["milestone"] == "milestone-7"
     assert payload["architecture"]["mode"] == "api-first"
     assert payload["architecture"]["implemented"] == "partial"
     assert payload["auth"]["implemented"] == "local session scaffold only"
     assert payload["transport"]["implemented"] == "generic authenticated request scaffold only"
-    assert payload["feature_parity"]["implemented"] == "placeholder domain/service layer only"
+    assert (
+        payload["feature_parity"]["implemented"]
+        == "placeholder domain/service layer only (company profile has opt-in integration)"
+    )
 
 
 def test_auth_status_payload_reports_local_readiness(tmp_path) -> None:
@@ -88,7 +97,7 @@ def test_service_diagnostics_payload_combines_subpayloads(tmp_path) -> None:
 
     payload = service_diagnostics_payload(paths=paths)
 
-    assert payload["milestone"] == "milestone-6"
+    assert payload["milestone"] == "milestone-7"
     assert payload["auth_status"]["auth"]["state"] == "missing"
     assert payload["transport_self_test"]["transport"]["auth"]["state"] == "missing"
     assert payload["auth_placeholders"]["bootstrap"]["implemented"] is False
@@ -98,8 +107,10 @@ def test_service_diagnostics_payload_combines_subpayloads(tmp_path) -> None:
 def test_feature_parity_payload_lists_benchmarked_operations() -> None:
     payload = feature_parity_payload()
 
-    assert payload["milestone"] == "milestone-6"
+    assert payload["milestone"] == "milestone-7"
     assert payload["implemented"] is False
+    assert payload["implemented_operations"] == []
+    assert "get_company_profile" in payload["placeholder_operations"]
     assert "search_people" in payload["operations"]
 
 
@@ -138,6 +149,44 @@ def test_get_company_profile_payload_fails_safely() -> None:
 
     assert payload["feature"]["status"] == "not_implemented"
     assert payload["feature"]["operation"] == "get_company_profile"
+
+
+def test_get_company_profile_payload_returns_real_data_when_provider_is_wired(monkeypatch) -> None:
+    class FakeProvider:
+        def get_company_profile(self, request: CompanyProfileRequest) -> CompanyProfileResult:
+            return CompanyProfileResult(
+                company_id=request.company_id,
+                canonical_url="https://www.linkedin.com/company/acme/",
+                name="Acme Corp",
+            )
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(company_profile_provider=FakeProvider()),
+    )
+
+    payload = get_company_profile_payload(company_id="acme")
+
+    assert payload["feature"]["implemented"] is True
+    assert payload["feature"]["status"] == "implemented"
+    assert payload["company_profile"]["name"] == "Acme Corp"
+
+
+def test_get_company_profile_payload_surfaces_lookup_failure(monkeypatch) -> None:
+    class FakeProvider:
+        def get_company_profile(self, request: CompanyProfileRequest) -> CompanyProfileResult:
+            raise CompanyProfileLookupError("temporary failure", retryable=True)
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(company_profile_provider=FakeProvider()),
+    )
+
+    payload = get_company_profile_payload(company_id="acme")
+
+    assert payload["feature"]["implemented"] is True
+    assert payload["feature"]["status"] == "lookup_failed"
+    assert payload["feature"]["retryable"] is True
 
 
 def test_get_company_posts_payload_fails_safely() -> None:

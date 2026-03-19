@@ -2,7 +2,7 @@
 
 `linkedin-hybrid-mcp` is a Python MCP service scaffold for LinkedIn workflows with an API-first design target.
 
-Milestone 6 in this repository currently includes:
+Milestone 7 in this repository currently includes:
 
 - Python project scaffolding
 - architecture, roadmap, security, and configuration documentation
@@ -65,7 +65,8 @@ tests/
 - `auth_flow_placeholders`: explicit not-implemented auth entry points
 - `service_diagnostics`: combined safe diagnostics snapshot
 - `feature_parity_status`: benchmark tracking for unimplemented LinkedIn operations
-- `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`, `get_company_profile`, `get_company_posts`: safe placeholder tools that return clear non-implementation payloads
+- `get_company_profile`: opt-in LinkedIn-backed implementation using public company page metadata parsing (`LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`)
+- `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`, `get_company_posts`: safe placeholder tools that return clear non-implementation payloads
 
 ## Status
 
@@ -80,7 +81,7 @@ The repository still does not implement real LinkedIn login or API calls.
 
 ## Feature parity scaffold status
 
-This repository now tracks a narrow benchmark set from `linkedin-mcp-server`:
+This repository tracks a narrow benchmark set from `linkedin-mcp-server`:
 
 - `search_people`
 - `get_person_profile`
@@ -89,7 +90,18 @@ This repository now tracks a narrow benchmark set from `linkedin-mcp-server`:
 - `get_company_profile`
 - `get_company_posts`
 
-These operations are intentionally placeholders only. They fail closed with explicit `not_implemented` payloads and do not perform network access, scraping, or private API calls.
+`get_company_profile` now has a real opt-in implementation path that:
+
+- resolves a LinkedIn company page URL from `company_id`
+- fetches the public company page over HTTP
+- parses Open Graph and JSON-LD metadata into typed output
+
+Limitations and blockers:
+
+- coverage depends on LinkedIn public page metadata availability and shape
+- no browser automation fallback is implemented yet
+- no LinkedIn private API integration is implemented
+- all other benchmarked operations remain explicit placeholders
 
 ## Transport scaffold status
 

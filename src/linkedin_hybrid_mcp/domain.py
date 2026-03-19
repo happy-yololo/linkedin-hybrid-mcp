@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 FEATURE_BENCHMARK = "linkedin-mcp-server"
 
@@ -45,6 +45,32 @@ class CompanyProfileRequest:
 
 
 @dataclass(frozen=True)
+class CompanyProfileResult:
+    company_id: str
+    canonical_url: str
+    name: str
+    description: str | None = None
+    website: str | None = None
+    industry: str | None = None
+    logo_url: str | None = None
+    source: str = "linkedin_public_company_page"
+    notes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "company_id": self.company_id,
+            "canonical_url": self.canonical_url,
+            "name": self.name,
+            "description": self.description,
+            "website": self.website,
+            "industry": self.industry,
+            "logo_url": self.logo_url,
+            "source": self.source,
+            "notes": list(self.notes),
+        }
+
+
+@dataclass(frozen=True)
 class CompanyPostsRequest:
     company_id: str
     limit: int = 10
@@ -73,6 +99,21 @@ class OperationPlaceholder:
         }
 
 
+class CompanyProfileLookupError(RuntimeError):
+    """Raised when company profile retrieval fails after integration is configured."""
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+class CompanyProfileProvider(Protocol):
+    """Boundary interface for company profile retrieval integrations."""
+
+    def get_company_profile(self, request: CompanyProfileRequest) -> CompanyProfileResult:
+        """Fetch company profile details for a normalized company identifier."""
+
+
 def _validate_non_empty(name: str, value: str) -> str:
     normalized = value.strip()
     if not normalized:
@@ -88,6 +129,9 @@ def _validate_limit(limit: int) -> int:
 
 class LinkedInFeatureParityService:
     """Explicit placeholder service for benchmarked LinkedIn operations."""
+
+    def __init__(self, *, company_profile_provider: CompanyProfileProvider | None = None) -> None:
+        self._company_profile_provider = company_profile_provider
 
     def _raise_not_implemented(
         self,
@@ -149,11 +193,24 @@ class LinkedInFeatureParityService:
             request={"job_id": _validate_non_empty("job_id", request.job_id)},
         )
 
-    def get_company_profile(self, request: CompanyProfileRequest) -> None:
-        self._raise_not_implemented(
-            "get_company_profile",
-            request={"company_id": _validate_non_empty("company_id", request.company_id)},
-        )
+    def get_company_profile(self, request: CompanyProfileRequest) -> CompanyProfileResult:
+        normalized_company_id = _validate_non_empty("company_id", request.company_id)
+        if self._company_profile_provider is None:
+            self._raise_not_implemented(
+                "get_company_profile",
+                request={"company_id": normalized_company_id},
+            )
+        try:
+            return self._company_profile_provider.get_company_profile(
+                CompanyProfileRequest(company_id=normalized_company_id)
+            )
+        except CompanyProfileLookupError:
+            raise
+        except Exception as exc:
+            raise CompanyProfileLookupError(
+                f"Company profile lookup failed for '{normalized_company_id}': {exc}",
+                retryable=False,
+            ) from exc
 
     def get_company_posts(self, request: CompanyPostsRequest) -> None:
         self._raise_not_implemented(

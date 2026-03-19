@@ -57,6 +57,13 @@ Build `linkedin-hybrid-mcp` into an API-first, production-shaped MCP service for
   - safe `not_implemented` MCP tool payloads added
   - implement only when honestly supported and tested
 
+- [x] Milestone 7 — First real feature phase (`get_company_profile`)
+  - typed company profile result and provider interfaces
+  - LinkedIn-backed public company page fetch + metadata parser
+  - MCP payload supports implemented / lookup_failed / not_implemented states
+  - opt-in flag: `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`
+  - tests for parser, provider wiring, and server payload behavior
+
 ## Working principles
 - API-first, not browser-first
 - browser only for auth bootstrap or recovery when necessary
