@@ -1,15 +1,15 @@
 # linkedin-hybrid-mcp
 
-`linkedin-hybrid-mcp` is a new Python MCP service intended to follow an API-first architecture for LinkedIn automation and data access.
+`linkedin-hybrid-mcp` is a Python MCP service scaffold for LinkedIn workflows with an API-first design target.
 
-Milestone 3 in this repository is intentionally limited to:
+Milestone 6 in this repository currently includes:
 
 - Python project scaffolding
-- architecture documentation
-- a minimal MCP server skeleton
-- basic `health` and `service_info` tools
+- architecture, roadmap, security, and configuration documentation
+- a minimal MCP server skeleton with safe diagnostics tools
 - a local auth/session storage scaffold for future work
 - a generic typed HTTP transport scaffold for future authenticated calls
+- typed placeholder interfaces for benchmarked LinkedIn domain operations
 
 It does **not** yet implement working LinkedIn authentication, browser bootstrap, LinkedIn-specific HTTP clients, or any reverse-engineered/private API behavior.
 
@@ -45,8 +45,13 @@ src/linkedin_hybrid_mcp/
   server.py
 docs/
   architecture.md
+  configuration.md
+  roadmap.md
+  security.md
 tests/
   test_auth.py
+  test_client.py
+  test_domain.py
   test_server.py
 ```
 
@@ -54,6 +59,13 @@ tests/
 
 - `health`: basic service liveness metadata
 - `service_info`: milestone, architecture, and local auth scaffold summary
+- `auth_status_tool`: local session readiness without network access
+- `transport_self_test_tool`: transport readiness without network access
+- `clear_session_tool`: remove local session scaffold state
+- `auth_flow_placeholders`: explicit not-implemented auth entry points
+- `service_diagnostics`: combined safe diagnostics snapshot
+- `feature_parity_status`: benchmark tracking for unimplemented LinkedIn operations
+- `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`, `get_company_profile`, `get_company_posts`: safe placeholder tools that return clear non-implementation payloads
 
 ## Status
 
@@ -65,6 +77,19 @@ This repository currently includes a local-only auth/session scaffold:
 - explicit placeholders for future browser bootstrap and refresh flows
 
 The repository still does not implement real LinkedIn login or API calls.
+
+## Feature parity scaffold status
+
+This repository now tracks a narrow benchmark set from `linkedin-mcp-server`:
+
+- `search_people`
+- `get_person_profile`
+- `search_jobs`
+- `get_job_details`
+- `get_company_profile`
+- `get_company_posts`
+
+These operations are intentionally placeholders only. They fail closed with explicit `not_implemented` payloads and do not perform network access, scraping, or private API calls.
 
 ## Transport scaffold status
 
@@ -78,6 +103,13 @@ The repository now includes a production-shaped but generic HTTP transport scaff
 - a transport self-test helper that reports readiness without making live network calls
 
 This transport layer is intentionally generic. It does not claim to know or implement LinkedIn private endpoints, cookies, or request formats.
+
+## Security and configuration docs
+
+- [Architecture](docs/architecture.md)
+- [Roadmap](docs/roadmap.md)
+- [Configuration](docs/configuration.md)
+- [Security notes](docs/security.md)
 
 ## Local auth storage
 
@@ -93,8 +125,6 @@ You can override the storage root with:
 - `XDG_DATA_HOME=/custom/xdg-root`
 
 The stored file is intended for local development scaffolding only. It does not claim to provide a working LinkedIn authenticated session.
-
-
 
 ## Runtime note
 

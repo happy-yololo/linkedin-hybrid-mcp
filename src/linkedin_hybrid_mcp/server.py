@@ -22,9 +22,22 @@ from linkedin_hybrid_mcp.auth import (
 )
 from linkedin_hybrid_mcp.client import transport_self_test
 from linkedin_hybrid_mcp.config import StoragePaths
+from linkedin_hybrid_mcp.domain import (
+    FEATURE_BENCHMARK,
+    CompanyPostsRequest,
+    CompanyProfileRequest,
+    DomainOperationNotImplementedError,
+    JobDetailsRequest,
+    LinkedInFeatureParityService,
+    PersonProfileRequest,
+    SearchJobsRequest,
+    SearchPeopleRequest,
+    benchmark_operations,
+)
 
 SERVICE_NAME = "linkedin-hybrid-mcp"
-MILESTONE = "milestone-4"
+MILESTONE = "milestone-6"
+feature_parity_service = LinkedInFeatureParityService()
 
 
 class _UnavailableMCP:
@@ -78,8 +91,13 @@ def service_info_payload() -> dict[str, object]:
             "implemented": "generic authenticated request scaffold only",
             "status": current_transport_status,
         },
+        "feature_parity": {
+            "benchmark": FEATURE_BENCHMARK,
+            "implemented": "placeholder domain/service layer only",
+            "operations": benchmark_operations(),
+        },
         "notes": [
-            "Milestone 4 adds safe diagnostics payloads and MCP tool wrappers for local auth and transport visibility.",
+            "Milestone 6 adds typed placeholder interfaces for benchmarked LinkedIn operations.",
             "LinkedIn auth, browser bootstrap, refresh flows, and LinkedIn-specific API integrations are still not implemented.",
         ],
     }
@@ -186,7 +204,120 @@ def service_diagnostics_payload(*, paths: StoragePaths | None = None) -> dict[st
         "auth_status": auth_status_payload(paths=paths),
         "transport_self_test": transport_diagnostics_payload(paths=paths),
         "auth_placeholders": auth_flow_placeholders_payload(paths=paths),
+        "feature_parity": feature_parity_payload(),
     }
+
+
+def _unimplemented_feature_payload(
+    operation_name: str,
+    request: dict[str, object],
+) -> dict[str, object]:
+    placeholder = feature_parity_service.placeholder_for(operation_name, request=request)
+    return {
+        "service": SERVICE_NAME,
+        "milestone": MILESTONE,
+        "feature": placeholder.to_dict(),
+    }
+
+
+def feature_parity_payload() -> dict[str, object]:
+    """Describe the benchmarked LinkedIn operations tracked by placeholders."""
+
+    return {
+        "service": SERVICE_NAME,
+        "milestone": MILESTONE,
+        "benchmark": FEATURE_BENCHMARK,
+        "implemented": False,
+        "operations": benchmark_operations(),
+        "notes": [
+            "These operations are tracked as explicit placeholders only.",
+            "The current scaffold does not claim LinkedIn private API, scraping, or browser execution support for them.",
+        ],
+    }
+
+
+def search_people_payload(*, query: str, limit: int = 10) -> dict[str, object]:
+    """Fail safely for the benchmarked people search operation."""
+
+    request = SearchPeopleRequest(query=query, limit=limit)
+    try:
+        feature_parity_service.search_people(request)
+    except DomainOperationNotImplementedError:
+        return _unimplemented_feature_payload(
+            "search_people",
+            {"query": request.query, "limit": request.limit},
+        )
+    raise AssertionError("search_people placeholder should always raise not implemented.")
+
+
+def get_person_profile_payload(*, person_id: str) -> dict[str, object]:
+    """Fail safely for the benchmarked person profile operation."""
+
+    request = PersonProfileRequest(person_id=person_id)
+    try:
+        feature_parity_service.get_person_profile(request)
+    except DomainOperationNotImplementedError:
+        return _unimplemented_feature_payload(
+            "get_person_profile",
+            {"person_id": request.person_id},
+        )
+    raise AssertionError("get_person_profile placeholder should always raise not implemented.")
+
+
+def search_jobs_payload(*, query: str, location: str | None = None, limit: int = 10) -> dict[str, object]:
+    """Fail safely for the benchmarked job search operation."""
+
+    request = SearchJobsRequest(query=query, location=location, limit=limit)
+    try:
+        feature_parity_service.search_jobs(request)
+    except DomainOperationNotImplementedError:
+        payload: dict[str, object] = {"query": request.query, "limit": request.limit}
+        if request.location is not None:
+            payload["location"] = request.location
+        return _unimplemented_feature_payload("search_jobs", payload)
+    raise AssertionError("search_jobs placeholder should always raise not implemented.")
+
+
+def get_job_details_payload(*, job_id: str) -> dict[str, object]:
+    """Fail safely for the benchmarked job details operation."""
+
+    request = JobDetailsRequest(job_id=job_id)
+    try:
+        feature_parity_service.get_job_details(request)
+    except DomainOperationNotImplementedError:
+        return _unimplemented_feature_payload(
+            "get_job_details",
+            {"job_id": request.job_id},
+        )
+    raise AssertionError("get_job_details placeholder should always raise not implemented.")
+
+
+def get_company_profile_payload(*, company_id: str) -> dict[str, object]:
+    """Fail safely for the benchmarked company profile operation."""
+
+    request = CompanyProfileRequest(company_id=company_id)
+    try:
+        feature_parity_service.get_company_profile(request)
+    except DomainOperationNotImplementedError:
+        return _unimplemented_feature_payload(
+            "get_company_profile",
+            {"company_id": request.company_id},
+        )
+    raise AssertionError("get_company_profile placeholder should always raise not implemented.")
+
+
+def get_company_posts_payload(*, company_id: str, limit: int = 10) -> dict[str, object]:
+    """Fail safely for the benchmarked company posts operation."""
+
+    request = CompanyPostsRequest(company_id=company_id, limit=limit)
+    try:
+        feature_parity_service.get_company_posts(request)
+    except DomainOperationNotImplementedError:
+        return _unimplemented_feature_payload(
+            "get_company_posts",
+            {"company_id": request.company_id, "limit": request.limit},
+        )
+    raise AssertionError("get_company_posts placeholder should always raise not implemented.")
 
 
 @mcp.tool()
@@ -236,3 +367,52 @@ def service_diagnostics() -> dict[str, object]:
     """Return a combined safe diagnostics snapshot for the current scaffold."""
 
     return service_diagnostics_payload()
+
+
+@mcp.tool()
+def feature_parity_status() -> dict[str, object]:
+    """Describe benchmarked LinkedIn operations that remain placeholders."""
+
+    return feature_parity_payload()
+
+
+@mcp.tool()
+def search_people(query: str, limit: int = 10) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked people search."""
+
+    return search_people_payload(query=query, limit=limit)
+
+
+@mcp.tool()
+def get_person_profile(person_id: str) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked profile lookup."""
+
+    return get_person_profile_payload(person_id=person_id)
+
+
+@mcp.tool()
+def search_jobs(query: str, location: str | None = None, limit: int = 10) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked job search."""
+
+    return search_jobs_payload(query=query, location=location, limit=limit)
+
+
+@mcp.tool()
+def get_job_details(job_id: str) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked job detail lookup."""
+
+    return get_job_details_payload(job_id=job_id)
+
+
+@mcp.tool()
+def get_company_profile(company_id: str) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked company profile lookup."""
+
+    return get_company_profile_payload(company_id=company_id)
+
+
+@mcp.tool()
+def get_company_posts(company_id: str, limit: int = 10) -> dict[str, object]:
+    """Return a safe not-implemented payload for benchmarked company posts lookup."""
+
+    return get_company_posts_payload(company_id=company_id, limit=limit)

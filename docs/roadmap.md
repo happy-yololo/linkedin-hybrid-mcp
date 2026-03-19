@@ -21,28 +21,30 @@ Build `linkedin-hybrid-mcp` into an API-first, production-shaped MCP service for
   - explicit placeholders for future bootstrap/refresh flows
   - commit: `8702e25`
 
-- [ ] Milestone 3 — Transport scaffold
+- [x] Milestone 3 — Transport scaffold
   - typed transport errors
   - request settings / limits
   - retry/backoff policy
   - safe header handling
   - generic authenticated request scaffold
   - transport self-test helpers
-  - status: implemented locally, not yet committed at the time this roadmap was added
+  - commit: `6fd3025`
 
-- [ ] Milestone 4 — Safe MCP diagnostics tools
+- [x] Milestone 4 — Safe MCP diagnostics tools
   - auth status tool
   - clear session tool
   - bootstrap/refresh placeholders surfaced safely
   - service diagnostics
+  - commit: `eba9c79`
 
-- [ ] Milestone 5 — Security and documentation polish
+- [x] Milestone 5 — Security and documentation polish
   - storage/security notes
   - threat model
   - configuration documentation
   - runtime notes
+  - docs aligned to current scaffold reality
 
-- [ ] Milestone 6 — Feature parity roadmap
+- [x] Milestone 6 — Honest feature-parity scaffolding
   - benchmark against `linkedin-mcp-server`
   - target tools:
     - `search_people`
@@ -51,11 +53,15 @@ Build `linkedin-hybrid-mcp` into an API-first, production-shaped MCP service for
     - `get_job_details`
     - `get_company_profile`
     - `get_company_posts`
+  - typed placeholder domain/service layer added
+  - safe `not_implemented` MCP tool payloads added
   - implement only when honestly supported and tested
 
 ## Working principles
 - API-first, not browser-first
 - browser only for auth bootstrap or recovery when necessary
 - no fake LinkedIn endpoint claims
+- no fake LinkedIn private API integration
+- no pretend scraping support
 - tests should pass before each commit
 - push each stable milestone to GitHub

@@ -4,9 +4,9 @@
 
 Build a maintainable MCP service for LinkedIn workflows with an API-first execution model instead of a browser-heavy scraping architecture.
 
-## Milestone 3 scope
+## Current scope
 
-This milestone establishes the initial runtime skeleton plus local auth/session persistence primitives and a generic transport layer:
+Milestone 5 establishes the current runtime skeleton plus local auth/session persistence primitives, a generic transport layer, and safe diagnostics tooling:
 
 - package and repository structure
 - MCP server entrypoint
@@ -18,6 +18,7 @@ This milestone establishes the initial runtime skeleton plus local auth/session 
 - retry/backoff and request guardrails
 - non-network transport self-test diagnostics
 - architecture notes for future milestones
+- security and configuration documentation
 
 The following are intentionally not implemented yet:
 
@@ -25,7 +26,7 @@ The following are intentionally not implemented yet:
 - LinkedIn-specific authenticated HTTP clients
 - API adapters
 - browser automation fallback flows
-- domain tools for profile, messaging, search, or feed operations
+- implemented LinkedIn domain tools for profile, search, jobs, or company data
 
 ## Planned architecture
 
@@ -103,7 +104,26 @@ Milestone 2 ships only:
 - `health`
 - `service_info`
 
-Future milestones can add LinkedIn-specific tools after auth and transport layers exist.
+Milestone 4 ships:
+
+- `health`
+- `service_info`
+- `auth_status_tool`
+- `transport_self_test_tool`
+- `clear_session_tool`
+- `auth_flow_placeholders`
+- `service_diagnostics`
+
+Milestone 6 now adds explicit placeholder tools for:
+
+- `search_people`
+- `get_person_profile`
+- `search_jobs`
+- `get_job_details`
+- `get_company_profile`
+- `get_company_posts`
+
+These are benchmark-tracking placeholders only. They return safe `not_implemented` payloads and do not perform LinkedIn network calls.
 
 ## Engineering principles
 

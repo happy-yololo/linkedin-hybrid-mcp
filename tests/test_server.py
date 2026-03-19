@@ -6,7 +6,14 @@ from linkedin_hybrid_mcp.server import (
     auth_flow_placeholders_payload,
     auth_status_payload,
     clear_session_payload,
+    feature_parity_payload,
+    get_company_posts_payload,
+    get_company_profile_payload,
+    get_job_details_payload,
+    get_person_profile_payload,
     health_payload,
+    search_jobs_payload,
+    search_people_payload,
     service_diagnostics_payload,
     service_info_payload,
     transport_diagnostics_payload,
@@ -23,11 +30,12 @@ def test_health_payload() -> None:
 def test_service_info_payload_marks_scaffold() -> None:
     payload = service_info_payload()
 
-    assert payload["milestone"] == "milestone-4"
+    assert payload["milestone"] == "milestone-6"
     assert payload["architecture"]["mode"] == "api-first"
     assert payload["architecture"]["implemented"] == "partial"
     assert payload["auth"]["implemented"] == "local session scaffold only"
     assert payload["transport"]["implemented"] == "generic authenticated request scaffold only"
+    assert payload["feature_parity"]["implemented"] == "placeholder domain/service layer only"
 
 
 def test_auth_status_payload_reports_local_readiness(tmp_path) -> None:
@@ -80,7 +88,61 @@ def test_service_diagnostics_payload_combines_subpayloads(tmp_path) -> None:
 
     payload = service_diagnostics_payload(paths=paths)
 
-    assert payload["milestone"] == "milestone-4"
+    assert payload["milestone"] == "milestone-6"
     assert payload["auth_status"]["auth"]["state"] == "missing"
     assert payload["transport_self_test"]["transport"]["auth"]["state"] == "missing"
     assert payload["auth_placeholders"]["bootstrap"]["implemented"] is False
+    assert payload["feature_parity"]["implemented"] is False
+
+
+def test_feature_parity_payload_lists_benchmarked_operations() -> None:
+    payload = feature_parity_payload()
+
+    assert payload["milestone"] == "milestone-6"
+    assert payload["implemented"] is False
+    assert "search_people" in payload["operations"]
+
+
+def test_search_people_payload_fails_safely() -> None:
+    payload = search_people_payload(query="alice", limit=5)
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "search_people"
+    assert payload["feature"]["request"]["limit"] == 5
+
+
+def test_get_person_profile_payload_fails_safely() -> None:
+    payload = get_person_profile_payload(person_id="person-1")
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "get_person_profile"
+
+
+def test_search_jobs_payload_fails_safely() -> None:
+    payload = search_jobs_payload(query="engineer", location="Taipei", limit=3)
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "search_jobs"
+    assert payload["feature"]["request"]["location"] == "Taipei"
+
+
+def test_get_job_details_payload_fails_safely() -> None:
+    payload = get_job_details_payload(job_id="job-1")
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "get_job_details"
+
+
+def test_get_company_profile_payload_fails_safely() -> None:
+    payload = get_company_profile_payload(company_id="company-1")
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "get_company_profile"
+
+
+def test_get_company_posts_payload_fails_safely() -> None:
+    payload = get_company_posts_payload(company_id="company-1", limit=2)
+
+    assert payload["feature"]["status"] == "not_implemented"
+    assert payload["feature"]["operation"] == "get_company_posts"
+    assert payload["feature"]["request"]["limit"] == 2
