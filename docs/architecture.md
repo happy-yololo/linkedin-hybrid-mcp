@@ -6,7 +6,7 @@ Build a maintainable MCP service for LinkedIn workflows with an API-first execut
 
 ## Current scope
 
-Milestone 7 establishes the current runtime skeleton plus local auth/session persistence primitives, a generic transport layer, safe diagnostics tooling, and the first real company-profile integration path:
+Milestone 8 establishes the current runtime skeleton plus local auth/session persistence primitives, a generic transport layer, safe diagnostics tooling, and first real public-web feature integrations:
 
 - package and repository structure
 - MCP server entrypoint
@@ -18,6 +18,7 @@ Milestone 7 establishes the current runtime skeleton plus local auth/session per
 - retry/backoff and request guardrails
 - non-network transport self-test diagnostics
 - LinkedIn public company profile metadata parser/provider (`get_company_profile`, opt-in)
+- public-web providers for `search_people`, `get_person_profile`, `search_jobs`, `get_job_details` (opt-in)
 - architecture notes for future milestones
 - security and configuration documentation
 
@@ -27,7 +28,7 @@ The following are intentionally not implemented yet:
 - LinkedIn-specific authenticated HTTP clients
 - API adapters
 - browser automation fallback flows
-- implemented LinkedIn domain tools for profile, search, jobs, or company data
+- implemented `get_company_posts`
 
 ## Planned architecture
 
@@ -115,7 +116,7 @@ Milestone 4 ships:
 - `auth_flow_placeholders`
 - `service_diagnostics`
 
-Milestone 7 now includes benchmark tools for:
+Milestone 8 includes benchmark tools for:
 
 - `search_people`
 - `get_person_profile`
@@ -124,7 +125,11 @@ Milestone 7 now includes benchmark tools for:
 - `get_company_profile` (real when `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`)
 - `get_company_posts`
 
-`get_company_profile` can execute a real HTTP+parsing flow against LinkedIn public company pages when explicitly enabled. The other benchmarked tools remain placeholders with safe `not_implemented` payloads.
+`search_people`, `get_person_profile`, `search_jobs`, and `get_job_details` can execute real public-web HTTP+parsing flows when `LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB=1`.
+
+`get_company_profile` can execute a real HTTP+parsing flow against LinkedIn public company pages when `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`.
+
+`get_company_posts` remains intentionally unimplemented with explicit blockers surfaced in tool payloads.
 
 ## Engineering principles
 

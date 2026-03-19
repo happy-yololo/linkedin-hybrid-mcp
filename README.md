@@ -2,14 +2,15 @@
 
 `linkedin-hybrid-mcp` is a Python MCP service scaffold for LinkedIn workflows with an API-first design target.
 
-Milestone 7 in this repository currently includes:
+Milestone 8 in this repository currently includes:
 
 - Python project scaffolding
 - architecture, roadmap, security, and configuration documentation
 - a minimal MCP server skeleton with safe diagnostics tools
 - a local auth/session storage scaffold for future work
 - a generic typed HTTP transport scaffold for future authenticated calls
-- typed placeholder interfaces for benchmarked LinkedIn domain operations
+- typed benchmark interfaces for LinkedIn domain operations
+- opt-in public-web providers for selected benchmark operations
 
 It does **not** yet implement working LinkedIn authentication, browser bootstrap, LinkedIn-specific HTTP clients, or any reverse-engineered/private API behavior.
 
@@ -64,9 +65,10 @@ tests/
 - `clear_session_tool`: remove local session scaffold state
 - `auth_flow_placeholders`: explicit not-implemented auth entry points
 - `service_diagnostics`: combined safe diagnostics snapshot
-- `feature_parity_status`: benchmark tracking for unimplemented LinkedIn operations
+- `feature_parity_status`: benchmark tracking for implemented vs blocked operations
 - `get_company_profile`: opt-in LinkedIn-backed implementation using public company page metadata parsing (`LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`)
-- `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`, `get_company_posts`: safe placeholder tools that return clear non-implementation payloads
+- `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`: opt-in public-web implementations (`LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB=1`)
+- `get_company_posts`: explicit blocker payload with clear reasons and next honest steps
 
 ## Status
 
@@ -90,18 +92,25 @@ This repository tracks a narrow benchmark set from `linkedin-mcp-server`:
 - `get_company_profile`
 - `get_company_posts`
 
-`get_company_profile` now has a real opt-in implementation path that:
+`get_company_profile` has a real opt-in implementation path that:
 
 - resolves a LinkedIn company page URL from `company_id`
 - fetches the public company page over HTTP
 - parses Open Graph and JSON-LD metadata into typed output
+
+`search_people`, `get_person_profile`, `search_jobs`, and `get_job_details` now have real opt-in public-web implementations that:
+
+- use public-page/public-search fetches only
+- parse public HTML metadata into typed result payloads
+- return `lookup_failed` when integrations are enabled but runtime fetch/parse fails
 
 Limitations and blockers:
 
 - coverage depends on LinkedIn public page metadata availability and shape
 - no browser automation fallback is implemented yet
 - no LinkedIn private API integration is implemented
-- all other benchmarked operations remain explicit placeholders
+- `search_people` relies on public web indexing coverage (DuckDuckGo HTML endpoint), not LinkedIn private APIs
+- `get_company_posts` remains intentionally not implemented due dynamic feed rendering and no browser/auth fallback in this repo
 
 ## Transport scaffold status
 
@@ -115,6 +124,11 @@ The repository now includes a production-shaped but generic HTTP transport scaff
 - a transport self-test helper that reports readiness without making live network calls
 
 This transport layer is intentionally generic. It does not claim to know or implement LinkedIn private endpoints, cookies, or request formats.
+
+## Feature flags
+
+- `LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB=1`: enables `search_people`, `get_person_profile`, `search_jobs`, `get_job_details`
+- `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`: enables `get_company_profile`
 
 ## Security and configuration docs
 

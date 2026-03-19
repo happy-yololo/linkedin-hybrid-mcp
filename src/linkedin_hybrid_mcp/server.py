@@ -32,22 +32,61 @@ from linkedin_hybrid_mcp.domain import (
     DomainOperationNotImplementedError,
     JobDetailsRequest,
     LinkedInFeatureParityService,
+    OperationLookupError,
     PersonProfileRequest,
     SearchJobsRequest,
     SearchPeopleRequest,
     benchmark_operations,
 )
+from linkedin_hybrid_mcp.public_features import (
+    DuckDuckGoLinkedInPeopleSearchProvider,
+    LinkedInPublicJobDetailsProvider,
+    LinkedInPublicJobsSearchProvider,
+    LinkedInPublicPersonProfileProvider,
+)
 
 SERVICE_NAME = "linkedin-hybrid-mcp"
-MILESTONE = "milestone-7"
+MILESTONE = "milestone-8"
+
+
+def _public_web_enabled() -> bool:
+    return os.getenv("LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB", "").strip() == "1"
+
+
+def _company_profile_enabled() -> bool:
+    return os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1"
+
+
+def _implemented_operations() -> list[str]:
+    operations: list[str] = []
+    if _public_web_enabled():
+        operations.extend(
+            [
+                "search_people",
+                "get_person_profile",
+                "search_jobs",
+                "get_job_details",
+            ]
+        )
+    if _company_profile_enabled():
+        operations.append("get_company_profile")
+    return operations
 
 
 def _build_feature_parity_service() -> LinkedInFeatureParityService:
-    if os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1":
-        return LinkedInFeatureParityService(
-            company_profile_provider=LinkedInPublicCompanyProfileProvider(),
+    options: dict[str, object] = {}
+    if _public_web_enabled():
+        options.update(
+            {
+                "search_people_provider": DuckDuckGoLinkedInPeopleSearchProvider(),
+                "person_profile_provider": LinkedInPublicPersonProfileProvider(),
+                "search_jobs_provider": LinkedInPublicJobsSearchProvider(),
+                "job_details_provider": LinkedInPublicJobDetailsProvider(),
+            }
         )
-    return LinkedInFeatureParityService()
+    if _company_profile_enabled():
+        options["company_profile_provider"] = LinkedInPublicCompanyProfileProvider()
+    return LinkedInFeatureParityService(**options)
 
 
 feature_parity_service = _build_feature_parity_service()
@@ -107,15 +146,15 @@ def service_info_payload() -> dict[str, object]:
         "feature_parity": {
             "benchmark": FEATURE_BENCHMARK,
             "implemented": (
-                "company profile integration enabled; remaining operations are placeholders"
-                if os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1"
-                else "placeholder domain/service layer only (company profile has opt-in integration)"
+                "public-web integration enabled for selected operations; unlisted operations remain placeholders"
+                if _implemented_operations()
+                else "placeholder domain/service layer only (public-web integrations are opt-in)"
             ),
             "operations": benchmark_operations(),
         },
         "notes": [
-            "Milestone 7 adds typed benchmark operation interfaces and a real company profile integration path.",
-            "LinkedIn auth, browser bootstrap, refresh flows, and most LinkedIn-specific API integrations are still not implemented.",
+            "Milestone 8 adds public-web providers for people/profile/jobs operations behind explicit opt-in flags.",
+            "LinkedIn auth, browser bootstrap, refresh flows, and LinkedIn private API integrations are still not implemented.",
         ],
     }
 
@@ -240,87 +279,211 @@ def _unimplemented_feature_payload(
 def feature_parity_payload() -> dict[str, object]:
     """Describe the benchmarked LinkedIn operations tracked by placeholders."""
 
-    company_profile_enabled = (
-        os.getenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "").strip() == "1"
-    )
+    implemented_operations = _implemented_operations()
+    placeholder_operations = [
+        operation for operation in benchmark_operations() if operation not in implemented_operations
+    ]
     return {
         "service": SERVICE_NAME,
         "milestone": MILESTONE,
         "benchmark": FEATURE_BENCHMARK,
-        "implemented": company_profile_enabled,
-        "implemented_operations": ["get_company_profile"] if company_profile_enabled else [],
-        "placeholder_operations": [
-            "search_people",
-            "get_person_profile",
-            "search_jobs",
-            "get_job_details",
-            "get_company_posts",
-        ]
-        if company_profile_enabled
-        else benchmark_operations(),
+        "implemented": bool(implemented_operations),
+        "implemented_operations": implemented_operations,
+        "placeholder_operations": placeholder_operations,
         "operations": benchmark_operations(),
         "notes": [
-            "get_company_profile has a real opt-in integration path via LinkedIn public company page metadata.",
-            "Other operations are tracked as explicit placeholders only.",
-            "The current scaffold does not claim LinkedIn private API, scraping, or browser execution support.",
+            "Implemented operations use public pages/public search only and are enabled explicitly by environment flags.",
+            "get_company_posts remains blocked due public-page consistency limitations and no browser/auth fallback.",
+            "This service does not claim LinkedIn private API, scraping automation, or browser execution support.",
         ],
     }
 
 
 def search_people_payload(*, query: str, limit: int = 10) -> dict[str, object]:
-    """Fail safely for the benchmarked people search operation."""
+    """Return public-search people results when enabled, otherwise fail safely."""
 
     request = SearchPeopleRequest(query=query, limit=limit)
     try:
-        feature_parity_service.search_people(request)
+        result = feature_parity_service.search_people(request)
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "search_people",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "implemented",
+                "summary": "Returns public web search hits for LinkedIn profile URLs.",
+                "request": {"query": request.query, "limit": request.limit},
+                "notes": [
+                    "This path uses public web indexing only and does not use LinkedIn private APIs.",
+                    "Results may be incomplete depending on public indexing coverage.",
+                ],
+            },
+            "people_search": result.to_dict(),
+        }
+    except OperationLookupError as exc:
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "search_people",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "lookup_failed",
+                "summary": "People search integration is configured but the lookup failed.",
+                "request": {"query": request.query, "limit": request.limit},
+                "retryable": exc.retryable,
+                "error": str(exc),
+            },
+        }
     except DomainOperationNotImplementedError:
         return _unimplemented_feature_payload(
             "search_people",
             {"query": request.query, "limit": request.limit},
         )
-    raise AssertionError("search_people placeholder should always raise not implemented.")
 
 
 def get_person_profile_payload(*, person_id: str) -> dict[str, object]:
-    """Fail safely for the benchmarked person profile operation."""
+    """Return public-profile data when enabled, otherwise fail safely."""
 
     request = PersonProfileRequest(person_id=person_id)
     try:
-        feature_parity_service.get_person_profile(request)
+        profile = feature_parity_service.get_person_profile(request)
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_person_profile",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "implemented",
+                "summary": "Returns person profile metadata parsed from public LinkedIn profile page HTML.",
+                "request": {"person_id": request.person_id},
+                "notes": [
+                    "Implementation parses Open Graph and JSON-LD metadata from publicly visible profile pages.",
+                    "Profiles with limited public visibility may return fewer fields.",
+                ],
+            },
+            "person_profile": profile.to_dict(),
+        }
+    except OperationLookupError as exc:
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_person_profile",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "lookup_failed",
+                "summary": "Person profile integration is configured but the profile lookup failed.",
+                "request": {"person_id": request.person_id},
+                "retryable": exc.retryable,
+                "error": str(exc),
+            },
+        }
     except DomainOperationNotImplementedError:
         return _unimplemented_feature_payload(
             "get_person_profile",
             {"person_id": request.person_id},
         )
-    raise AssertionError("get_person_profile placeholder should always raise not implemented.")
 
 
 def search_jobs_payload(*, query: str, location: str | None = None, limit: int = 10) -> dict[str, object]:
-    """Fail safely for the benchmarked job search operation."""
+    """Return public jobs search results when enabled, otherwise fail safely."""
 
     request = SearchJobsRequest(query=query, location=location, limit=limit)
     try:
-        feature_parity_service.search_jobs(request)
+        result = feature_parity_service.search_jobs(request)
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "search_jobs",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "implemented",
+                "summary": "Returns job hits parsed from public LinkedIn jobs search pages.",
+                "request": {
+                    "query": request.query,
+                    "location": request.location,
+                    "limit": request.limit,
+                },
+                "notes": [
+                    "This path uses public LinkedIn jobs pages and metadata only.",
+                    "No LinkedIn private API access is used.",
+                ],
+            },
+            "jobs_search": result.to_dict(),
+        }
+    except OperationLookupError as exc:
+        payload: dict[str, object] = {"query": request.query, "limit": request.limit}
+        if request.location is not None:
+            payload["location"] = request.location
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "search_jobs",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "lookup_failed",
+                "summary": "Jobs search integration is configured but the search lookup failed.",
+                "request": payload,
+                "retryable": exc.retryable,
+                "error": str(exc),
+            },
+        }
     except DomainOperationNotImplementedError:
         payload: dict[str, object] = {"query": request.query, "limit": request.limit}
         if request.location is not None:
             payload["location"] = request.location
         return _unimplemented_feature_payload("search_jobs", payload)
-    raise AssertionError("search_jobs placeholder should always raise not implemented.")
 
 
 def get_job_details_payload(*, job_id: str) -> dict[str, object]:
-    """Fail safely for the benchmarked job details operation."""
+    """Return public job details when enabled, otherwise fail safely."""
 
     request = JobDetailsRequest(job_id=job_id)
     try:
-        feature_parity_service.get_job_details(request)
+        details = feature_parity_service.get_job_details(request)
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_job_details",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "implemented",
+                "summary": "Returns job details parsed from public LinkedIn job page metadata.",
+                "request": {"job_id": request.job_id},
+                "notes": [
+                    "Implementation parses Open Graph and JSON-LD JobPosting metadata only.",
+                    "No authenticated or private API calls are performed.",
+                ],
+            },
+            "job_details": details.to_dict(),
+        }
+    except OperationLookupError as exc:
+        return {
+            "service": SERVICE_NAME,
+            "milestone": MILESTONE,
+            "feature": {
+                "operation": "get_job_details",
+                "benchmark": FEATURE_BENCHMARK,
+                "implemented": True,
+                "status": "lookup_failed",
+                "summary": "Job details integration is configured but the detail lookup failed.",
+                "request": {"job_id": request.job_id},
+                "retryable": exc.retryable,
+                "error": str(exc),
+            },
+        }
     except DomainOperationNotImplementedError:
         return _unimplemented_feature_payload(
             "get_job_details",
             {"job_id": request.job_id},
         )
-    raise AssertionError("get_job_details placeholder should always raise not implemented.")
 
 
 def get_company_profile_payload(*, company_id: str) -> dict[str, object]:
@@ -374,17 +537,26 @@ def get_company_profile_payload(*, company_id: str) -> dict[str, object]:
 
 
 def get_company_posts_payload(*, company_id: str, limit: int = 10) -> dict[str, object]:
-    """Fail safely for the benchmarked company posts operation."""
+    """Fail safely with explicit blockers for company posts."""
 
     request = CompanyPostsRequest(company_id=company_id, limit=limit)
     try:
         feature_parity_service.get_company_posts(request)
     except DomainOperationNotImplementedError:
-        return _unimplemented_feature_payload(
+        payload = _unimplemented_feature_payload(
             "get_company_posts",
             {"company_id": request.company_id, "limit": request.limit},
         )
-    raise AssertionError("get_company_posts placeholder should always raise not implemented.")
+        payload["feature"]["blockers"] = [
+            "LinkedIn company feed pages are heavily dynamic and not consistently exposed as static public metadata.",
+            "This repository does not implement browser automation or authenticated private API fallback.",
+        ]
+        payload["feature"]["next_honest_steps"] = [
+            "Keep typed request/response contracts for future providers.",
+            "Add a provider when a stable public source is verified and testable.",
+        ]
+        return payload
+    raise AssertionError("get_company_posts should fail closed when no provider is configured.")
 
 
 @mcp.tool()
@@ -445,28 +617,28 @@ def feature_parity_status() -> dict[str, object]:
 
 @mcp.tool()
 def search_people(query: str, limit: int = 10) -> dict[str, object]:
-    """Return a safe not-implemented payload for benchmarked people search."""
+    """Search public web sources for LinkedIn profile hits."""
 
     return search_people_payload(query=query, limit=limit)
 
 
 @mcp.tool()
 def get_person_profile(person_id: str) -> dict[str, object]:
-    """Return a safe not-implemented payload for benchmarked profile lookup."""
+    """Fetch public LinkedIn profile metadata when integration is enabled."""
 
     return get_person_profile_payload(person_id=person_id)
 
 
 @mcp.tool()
 def search_jobs(query: str, location: str | None = None, limit: int = 10) -> dict[str, object]:
-    """Return a safe not-implemented payload for benchmarked job search."""
+    """Search public LinkedIn jobs pages when integration is enabled."""
 
     return search_jobs_payload(query=query, location=location, limit=limit)
 
 
 @mcp.tool()
 def get_job_details(job_id: str) -> dict[str, object]:
-    """Return a safe not-implemented payload for benchmarked job detail lookup."""
+    """Fetch public LinkedIn job detail metadata when integration is enabled."""
 
     return get_job_details_payload(job_id=job_id)
 
@@ -480,6 +652,6 @@ def get_company_profile(company_id: str) -> dict[str, object]:
 
 @mcp.tool()
 def get_company_posts(company_id: str, limit: int = 10) -> dict[str, object]:
-    """Return a safe not-implemented payload for benchmarked company posts lookup."""
+    """Return explicit blockers for company posts until a stable public source exists."""
 
     return get_company_posts_payload(company_id=company_id, limit=limit)

@@ -5,7 +5,18 @@ from linkedin_hybrid_mcp.domain import (
     CompanyProfileLookupError,
     CompanyProfileRequest,
     CompanyProfileResult,
+    JobDetailsRequest,
+    JobDetailsResult,
+    JobSearchHit,
     LinkedInFeatureParityService,
+    OperationLookupError,
+    PersonProfileRequest,
+    PersonProfileResult,
+    PersonSearchHit,
+    SearchJobsRequest,
+    SearchJobsResult,
+    SearchPeopleRequest,
+    SearchPeopleResult,
 )
 from linkedin_hybrid_mcp.config import resolve_storage_paths
 from linkedin_hybrid_mcp.server import (
@@ -36,14 +47,14 @@ def test_health_payload() -> None:
 def test_service_info_payload_marks_scaffold() -> None:
     payload = service_info_payload()
 
-    assert payload["milestone"] == "milestone-7"
+    assert payload["milestone"] == "milestone-8"
     assert payload["architecture"]["mode"] == "api-first"
     assert payload["architecture"]["implemented"] == "partial"
     assert payload["auth"]["implemented"] == "local session scaffold only"
     assert payload["transport"]["implemented"] == "generic authenticated request scaffold only"
     assert (
         payload["feature_parity"]["implemented"]
-        == "placeholder domain/service layer only (company profile has opt-in integration)"
+        == "placeholder domain/service layer only (public-web integrations are opt-in)"
     )
 
 
@@ -97,7 +108,7 @@ def test_service_diagnostics_payload_combines_subpayloads(tmp_path) -> None:
 
     payload = service_diagnostics_payload(paths=paths)
 
-    assert payload["milestone"] == "milestone-7"
+    assert payload["milestone"] == "milestone-8"
     assert payload["auth_status"]["auth"]["state"] == "missing"
     assert payload["transport_self_test"]["transport"]["auth"]["state"] == "missing"
     assert payload["auth_placeholders"]["bootstrap"]["implemented"] is False
@@ -107,11 +118,23 @@ def test_service_diagnostics_payload_combines_subpayloads(tmp_path) -> None:
 def test_feature_parity_payload_lists_benchmarked_operations() -> None:
     payload = feature_parity_payload()
 
-    assert payload["milestone"] == "milestone-7"
+    assert payload["milestone"] == "milestone-8"
     assert payload["implemented"] is False
     assert payload["implemented_operations"] == []
     assert "get_company_profile" in payload["placeholder_operations"]
     assert "search_people" in payload["operations"]
+
+
+def test_feature_parity_payload_reflects_opt_in_flags(monkeypatch) -> None:
+    monkeypatch.setenv("LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB", "1")
+    monkeypatch.setenv("LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC", "1")
+
+    payload = feature_parity_payload()
+
+    assert payload["implemented"] is True
+    assert "search_people" in payload["implemented_operations"]
+    assert "get_company_profile" in payload["implemented_operations"]
+    assert "get_company_posts" in payload["placeholder_operations"]
 
 
 def test_search_people_payload_fails_safely() -> None:
@@ -189,9 +212,121 @@ def test_get_company_profile_payload_surfaces_lookup_failure(monkeypatch) -> Non
     assert payload["feature"]["retryable"] is True
 
 
+def test_search_people_payload_returns_real_data_when_provider_is_wired(monkeypatch) -> None:
+    class FakePeopleProvider:
+        def search_people(self, _request: SearchPeopleRequest) -> SearchPeopleResult:
+            return SearchPeopleResult(
+                query="alice",
+                limit=1,
+                hits=(
+                    PersonSearchHit(
+                        person_id="alice",
+                        profile_url="https://www.linkedin.com/in/alice/",
+                        name="Alice",
+                    ),
+                ),
+                source="fake",
+            )
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(search_people_provider=FakePeopleProvider()),
+    )
+
+    payload = search_people_payload(query="alice", limit=1)
+
+    assert payload["feature"]["status"] == "implemented"
+    assert payload["people_search"]["hits"][0]["person_id"] == "alice"
+
+
+def test_search_people_payload_surfaces_lookup_failure(monkeypatch) -> None:
+    class FailingPeopleProvider:
+        def search_people(self, _request: SearchPeopleRequest) -> SearchPeopleResult:
+            raise OperationLookupError("search_people", "temporary failure", retryable=True)
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(search_people_provider=FailingPeopleProvider()),
+    )
+
+    payload = search_people_payload(query="alice", limit=1)
+
+    assert payload["feature"]["status"] == "lookup_failed"
+    assert payload["feature"]["retryable"] is True
+
+
+def test_get_person_profile_payload_returns_real_data_when_provider_is_wired(monkeypatch) -> None:
+    class FakePersonProvider:
+        def get_person_profile(self, _request: PersonProfileRequest) -> PersonProfileResult:
+            return PersonProfileResult(
+                person_id="alice",
+                canonical_url="https://www.linkedin.com/in/alice/",
+                name="Alice",
+            )
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(person_profile_provider=FakePersonProvider()),
+    )
+
+    payload = get_person_profile_payload(person_id="alice")
+
+    assert payload["feature"]["status"] == "implemented"
+    assert payload["person_profile"]["name"] == "Alice"
+
+
+def test_search_jobs_payload_returns_real_data_when_provider_is_wired(monkeypatch) -> None:
+    class FakeJobsProvider:
+        def search_jobs(self, _request: SearchJobsRequest) -> SearchJobsResult:
+            return SearchJobsResult(
+                query="engineer",
+                location="Taipei",
+                limit=1,
+                hits=(
+                    JobSearchHit(
+                        job_id="123",
+                        job_url="https://www.linkedin.com/jobs/view/123/",
+                        title="Engineer",
+                    ),
+                ),
+                source="fake",
+            )
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(search_jobs_provider=FakeJobsProvider()),
+    )
+
+    payload = search_jobs_payload(query="engineer", location="Taipei", limit=1)
+
+    assert payload["feature"]["status"] == "implemented"
+    assert payload["jobs_search"]["hits"][0]["job_id"] == "123"
+
+
+def test_get_job_details_payload_returns_real_data_when_provider_is_wired(monkeypatch) -> None:
+    class FakeJobDetailsProvider:
+        def get_job_details(self, _request: JobDetailsRequest) -> JobDetailsResult:
+            return JobDetailsResult(
+                job_id="123",
+                job_url="https://www.linkedin.com/jobs/view/123/",
+                title="Engineer",
+            )
+
+    monkeypatch.setattr(
+        "linkedin_hybrid_mcp.server.feature_parity_service",
+        LinkedInFeatureParityService(job_details_provider=FakeJobDetailsProvider()),
+    )
+
+    payload = get_job_details_payload(job_id="123")
+
+    assert payload["feature"]["status"] == "implemented"
+    assert payload["job_details"]["title"] == "Engineer"
+
+
 def test_get_company_posts_payload_fails_safely() -> None:
     payload = get_company_posts_payload(company_id="company-1", limit=2)
 
     assert payload["feature"]["status"] == "not_implemented"
     assert payload["feature"]["operation"] == "get_company_posts"
     assert payload["feature"]["request"]["limit"] == 2
+    assert payload["feature"]["blockers"]

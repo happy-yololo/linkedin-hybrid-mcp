@@ -64,6 +64,18 @@ Build `linkedin-hybrid-mcp` into an API-first, production-shaped MCP service for
   - opt-in flag: `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1`
   - tests for parser, provider wiring, and server payload behavior
 
+- [x] Milestone 8 — Public-web people/jobs/profile expansion
+  - real opt-in providers for:
+    - `search_people` (public web indexing path)
+    - `get_person_profile` (public LinkedIn profile metadata parser)
+    - `search_jobs` (public LinkedIn jobs search parser)
+    - `get_job_details` (public LinkedIn job page metadata parser)
+  - MCP payloads now report:
+    - `implemented`
+    - `lookup_failed`
+    - `not_implemented`
+  - `get_company_posts` remains blocked with explicit payload blockers and next steps
+
 ## Working principles
 - API-first, not browser-first
 - browser only for auth bootstrap or recovery when necessary

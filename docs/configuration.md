@@ -47,6 +47,33 @@ If neither variable is set, the service uses:
 ~/.local/share/linkedin-hybrid-mcp
 ```
 
+### `LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB`
+
+Enables public-web implementations for:
+
+- `search_people`
+- `get_person_profile`
+- `search_jobs`
+- `get_job_details`
+
+Example:
+
+```bash
+export LINKEDIN_HYBRID_ENABLE_PUBLIC_WEB=1
+```
+
+### `LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC`
+
+Enables public LinkedIn company page parsing for:
+
+- `get_company_profile`
+
+Example:
+
+```bash
+export LINKEDIN_HYBRID_ENABLE_COMPANY_PROFILE_PUBLIC=1
+```
+
 ## Stored files
 
 The current scaffold writes only one file:
@@ -60,3 +87,4 @@ This file is not a working LinkedIn login cache. It is only a placeholder for fu
 - importing and testing the package does not require the `mcp` dependency
 - diagnostics tools do not make live network calls
 - the generic transport layer requires explicit caller-supplied auth headers for any authenticated request
+- public-web feature tools may perform live network calls only when their opt-in flags are enabled
