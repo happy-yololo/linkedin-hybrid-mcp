@@ -4,19 +4,21 @@
 
 Build a maintainable MCP service for LinkedIn workflows with an API-first execution model instead of a browser-heavy scraping architecture.
 
-## Milestone 1 scope
+## Milestone 2 scope
 
-This milestone only establishes the skeleton:
+This milestone establishes the initial runtime skeleton plus local auth/session persistence primitives:
 
 - package and repository structure
 - MCP server entrypoint
 - initial tools for health and service metadata
+- local session metadata model
+- local JSON storage helpers
+- auth readiness/status evaluation
 - architecture notes for future milestones
 
 The following are intentionally not implemented yet:
 
 - LinkedIn authentication bootstrap
-- session persistence
 - authenticated HTTP clients
 - API adapters
 - browser automation fallback flows
@@ -29,13 +31,20 @@ The following are intentionally not implemented yet:
 Purpose:
 Acquire authenticated state with the minimum browser usage necessary.
 
-Expected direction:
+Current implementation:
+
+- local storage path resolution for persisted auth/session state
+- JSON-backed session metadata file management
+- status evaluation for missing, incomplete, expired, or ready session state
+- explicit placeholders for future bootstrap and refresh flows
+
+Expected future direction:
 
 - use a browser only to complete login and any anti-bot or MFA steps
 - extract the authenticated artifacts required for follow-on HTTP requests
 - persist session state in a controlled local store
 
-This layer is only conceptual in Milestone 1.
+This layer is only partially implemented in Milestone 2. It does not perform LinkedIn login.
 
 ### 2. API transport layer
 
@@ -50,7 +59,7 @@ Expected responsibilities:
 - response normalization
 - transport-level observability
 
-This layer is not implemented in Milestone 1.
+This layer is not implemented in Milestone 2.
 
 ### 3. Browser fallback layer
 
@@ -70,7 +79,7 @@ The browser should not be the default path for ordinary operations.
 Purpose:
 Expose stable, well-scoped tools to MCP clients while hiding auth and transport complexity.
 
-Milestone 1 ships only:
+Milestone 2 ships only:
 
 - `health`
 - `service_info`
@@ -84,4 +93,3 @@ Future milestones can add LinkedIn-specific tools after auth and transport layer
 - explicit boundaries between auth, transport, and tool layers
 - honest documentation about unsupported features
 - incremental milestones with small atomic changes
-

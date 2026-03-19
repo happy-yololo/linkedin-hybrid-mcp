@@ -11,9 +11,10 @@ except ModuleNotFoundError:
     FastMCP = None  # type: ignore[assignment]
 
 from linkedin_hybrid_mcp import __version__
+from linkedin_hybrid_mcp.auth import auth_status
 
 SERVICE_NAME = "linkedin-hybrid-mcp"
-MILESTONE = "milestone-1"
+MILESTONE = "milestone-2"
 
 
 class _UnavailableMCP:
@@ -47,6 +48,8 @@ def health_payload() -> dict[str, str]:
 def service_info_payload() -> dict[str, object]:
     """Return current milestone and architecture metadata."""
 
+    current_auth_status = auth_status().to_dict()
+
     return {
         "service": SERVICE_NAME,
         "version": __version__,
@@ -54,11 +57,15 @@ def service_info_payload() -> dict[str, object]:
         "architecture": {
             "mode": "api-first",
             "browser_usage": "auth bootstrap and fallback only",
-            "implemented": False,
+            "implemented": "partial",
+        },
+        "auth": {
+            "implemented": "local session scaffold only",
+            "status": current_auth_status,
         },
         "notes": [
-            "Milestone 1 is scaffold only.",
-            "LinkedIn auth and API integrations are not implemented yet.",
+            "Milestone 2 adds local auth/session storage scaffolding.",
+            "LinkedIn auth, browser bootstrap, refresh flows, and API integrations are still not implemented.",
         ],
     }
 

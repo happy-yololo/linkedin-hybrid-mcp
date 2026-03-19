@@ -2,14 +2,15 @@
 
 `linkedin-hybrid-mcp` is a new Python MCP service intended to follow an API-first architecture for LinkedIn automation and data access.
 
-Milestone 1 in this repository is intentionally limited to:
+Milestone 2 in this repository is intentionally limited to:
 
 - Python project scaffolding
 - architecture documentation
 - a minimal MCP server skeleton
 - basic `health` and `service_info` tools
+- a local auth/session storage scaffold for future work
 
-It does **not** yet implement LinkedIn authentication, browser bootstrap, HTTP clients, or any reverse-engineered/private API behavior.
+It does **not** yet implement working LinkedIn authentication, browser bootstrap, HTTP clients, or any reverse-engineered/private API behavior.
 
 ## Design direction
 
@@ -37,24 +38,49 @@ linkedin-hybrid-mcp
 src/linkedin_hybrid_mcp/
   __init__.py
   __main__.py
+  auth.py
+  config.py
   server.py
 docs/
   architecture.md
 tests/
+  test_auth.py
   test_server.py
 ```
 
 ## Available MCP tools
 
 - `health`: basic service liveness metadata
-- `service_info`: milestone and architecture summary
+- `service_info`: milestone, architecture, and local auth scaffold summary
 
 ## Status
 
-This repository is currently a scaffold for Milestone 1 only.
+This repository currently includes a local-only auth/session scaffold:
+
+- configurable local storage paths
+- JSON-backed session metadata load/save helpers
+- auth readiness status evaluation
+- explicit placeholders for future browser bootstrap and refresh flows
+
+The repository still does not implement real LinkedIn login or API calls.
+
+## Local auth storage
+
+By default the session scaffold stores metadata at:
+
+```text
+~/.local/share/linkedin-hybrid-mcp/session.json
+```
+
+You can override the storage root with:
+
+- `LINKEDIN_HYBRID_MCP_HOME=/custom/path`
+- `XDG_DATA_HOME=/custom/xdg-root`
+
+The stored file is intended for local development scaffolding only. It does not claim to provide a working LinkedIn authenticated session.
 
 
 
 ## Runtime note
 
-The `mcp` runtime dependency is kept optional in Milestone 1 so the scaffold and tests remain runnable on machines that do not yet have a Python 3.10+ interpreter available.
+The `mcp` runtime dependency is kept optional so the scaffold and tests remain runnable on machines that do not yet have a Python 3.10+ interpreter available.
